@@ -13,6 +13,7 @@ https://extensions.gnome.org/upload/ while signed in to the extension owner's ac
 The ZIP contains runtime JavaScript, stylesheet, metadata, schema source, and
 license. Developer tests and build files stay in the source repository.
 GNOME Extensions assigns its own extension version when accepting an upload.
+The visible release number is supplied by `version-name` (4.0.1).
 This package has been prepared for submission; it has not been submitted or
 approved by GNOME Extensions.
 
@@ -28,6 +29,9 @@ windows. The restore test substitutes the helper launcher and stable app ID.
 Physical pointer/touch behavior, multiple monitors, app-specific new-window
 support, and interaction with other overview extensions need desktop testing.
 See README for the repeatable test command and known headless warnings.
+
+Shexli 0.2.1 reports zero findings on the 4.0.1 submission ZIP. See
+`REVIEW_CHECKS.md` for the checks, analyzer environment, and naming decision.
 
 For screenshots use your own desktop with non-sensitive example apps. Headless
 test windows are diagnostic fixtures, not representative app contents.

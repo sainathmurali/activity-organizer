@@ -68,7 +68,7 @@ Log out and log back in to load the newly installed or updated code, then:
 gnome-extensions enable activityOrganizer@sainathmurali.github.io
 ```
 
-The packaged ZIP in `dist/` is version 4, containing the native stack layout, saved app sessions, and window move/remove menus under `activityOrganizer@sainathmurali.github.io`. The earlier `activity-organizer@local` prototype is a separate extension and should be disabled if installed. Building or testing does not enable the extension in your desktop session.
+The packaged ZIP in `dist/` is release 4.0.1, containing the native stack layout, saved app sessions, and window move/remove menus under `activityOrganizer@sainathmurali.github.io`. The release uses `version-name`; extensions.gnome.org assigns its own numeric submission version. The earlier `activity-organizer@local` prototype is a separate extension and should be disabled if installed. Building or testing does not enable the extension in your desktop session.
 
 To restore GNOME's original layout:
 

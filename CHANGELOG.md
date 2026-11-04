@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 4.0.1
+
+- Prepare metadata for GNOME Extensions review using `version-name` instead of a developer-assigned numeric version.
+- Make dialog teardown synchronous on disable, including during its closing animation.
+- Clarify native popup-manager ownership and remove its unnecessary retained reference.
+- Check the submission ZIP with Shexli 0.2.1: zero findings.
+
 ## Version 4
 
 - Save app/window counts in persistent custom-group sessions, with automatic saves and up to ten saved versions.

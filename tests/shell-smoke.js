@@ -187,7 +187,13 @@ export async function run() {
     const savedWork = JSON.stringify(organizer._versions('work'));
     // Disable must restore both the layout hook and modified native preview state.
     const patchedSlots = WorkspaceLayout.prototype._getWindowSlots;
+    organizer._newGroup();
+    let dialogDestroyed = false;
+    organizer._dialog.connect('destroy', () => { dialogDestroyed = true; });
+    organizer._dialog.close();
     await Main.extensionManager.disableExtension('activityOrganizer@sainathmurali.github.io');
+    check(dialogDestroyed && !organizer._dialog && !organizer._dialogClosedId,
+        'Disable must destroy a closing dialog and disconnect its callback synchronously');
     check(WorkspaceLayout.prototype._getWindowSlots !== patchedSlots, 'Original native layout method must be restored');
     check(organizer._layouts.size === 0, 'Decorations and layout records should be removed');
     await Scripting.sleep(300);

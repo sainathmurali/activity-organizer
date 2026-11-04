@@ -48,6 +48,7 @@ export default class ActivityOrganizer extends Extension {
         this._pending = 0;
         this._exiting = false;
         this._rightClickPreview = null;
+        this._dialogClosedId = 0;
         this._groups = [];
         this._sessions = [];
         this._restoreTimer = 0;
@@ -566,11 +567,13 @@ export default class ActivityOrganizer extends Extension {
     }
     _popup(source) {
         this._menu?.destroy();
-        this._menuManager = new PopupMenu.PopupMenuManager(source);
+        // This JS helper has no destroy() API. Destroying its menu invokes
+        // removeMenu(), which releases the manager's menu, actor and stage signals.
+        const manager = new PopupMenu.PopupMenuManager(source);
         this._menu = new PopupMenu.PopupMenu(source, 0.5, St.Side.TOP);
         Main.uiGroup.add_child(this._menu.actor);
         this._menu.actor.hide();
-        this._menuManager.addMenu(this._menu);
+        manager.addMenu(this._menu);
         return this._menu;
     }
     _windowMenu(preview, source = preview) {
@@ -724,9 +727,26 @@ export default class ActivityOrganizer extends Extension {
                 dialog.close();
             }},
         ]);
-        dialog.connect('closed', () => { this._dialog = null; });
+        this._dialogClosedId = dialog.connect('closed', () => {
+            dialog.disconnect(this._dialogClosedId);
+            this._dialogClosedId = 0;
+            this._dialog = null;
+        });
         dialog.setInitialKeyFocus(entry.clutter_text);
-        dialog.open();
+        if (!dialog.open())
+            this._destroyDialog();
+    }
+    _destroyDialog() {
+        if (!this._dialog)
+            return;
+        if (this._dialogClosedId)
+            this._dialog.disconnect(this._dialogClosedId);
+        this._dialogClosedId = 0;
+        // Disable must finish synchronously, including a dialog mid-animation.
+        this._dialog.remove_all_transitions();
+        this._dialog.popModal();
+        this._dialog.destroy();
+        this._dialog = null;
     }
     _restorePreview(preview, state) {
         if (preview._destroyed)
@@ -749,9 +769,7 @@ export default class ActivityOrganizer extends Extension {
         this._rightClickPreview = null;
         this._menu?.destroy();
         this._menu = null;
-        this._menuManager = null;
-        this._dialog?.close();
-        this._dialog = null;
+        this._destroyDialog();
         this._injections?.clear();
         for (const [object, id] of this._signals ?? [])
             object.disconnect(id);
