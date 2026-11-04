@@ -1,0 +1,12 @@
+{
+  "uuid": "activityOrganizer@sainathmurali.github.io",
+  "name": "Activity Organizer",
+  "description": "Organize Activities into app stacks and custom groups. Expand stacks, move windows between groups, save app/window sessions, and reopen saved groups.",
+  "shell-version": ["50"],
+  "settings-schema": "org.gnome.shell.extensions.activity-organizer",
+  "url": "https://github.com/sainathmurali/activity-organizer",
+  "donations": {
+    "buymeacoffee": "bionichuman"
+  },
+  "version": 4
+}

@@ -1,0 +1,12 @@
+.ao-toolbar { spacing: 12px; color: #f6f5f4; }
+.ao-control { padding: 7px 13px; border-radius: 16px; background-color: rgba(24,24,29,0.88); color: #f6f5f4; font-size: 13px; }
+.ao-control:hover { background-color: #51456f; }
+.ao-control:focus { box-shadow: inset 0 0 0 2px #b7a1ff; }
+.ao-targets { spacing: 8px; }
+.ao-hint { color: #d4d1dc; font-size: 11px; }
+.ao-stack { padding: 0 10px 4px; }
+.ao-stack-header { spacing: 6px; padding: 2px 6px; border-radius: 18px; background-color: rgba(20,20,25,0.8); color: #ffffff; }
+.ao-stack-header .ao-control { background-color: transparent; font-weight: bold; }
+.ao-stack-header .ao-control:hover { background-color: rgba(255,255,255,0.13); }
+.ao-dialog-title { font-weight: bold; font-size: 22px; margin-bottom: 16px; }
+.ao-group-entry { padding: 12px; min-width: 340px; }

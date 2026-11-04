@@ -1,0 +1,33 @@
+# GNOME Extensions submission
+
+Upload `dist/activityOrganizer@sainathmurali.github.io.shell-extension.zip` at
+https://extensions.gnome.org/upload/ while signed in to the extension owner's account.
+
+- Name: Activity Organizer
+- UUID: `activityOrganizer@sainathmurali.github.io`
+- Supported Shell version: 50
+- Source repository: https://github.com/sainathmurali/activity-organizer
+- License: GPL-3.0-or-later
+- Donation: https://www.buymeacoffee.com/bionichuman
+
+The ZIP contains runtime JavaScript, stylesheet, metadata, schema source, and
+license. Developer tests and build files stay in the source repository.
+GNOME Extensions assigns its own extension version when accepting an upload.
+This package has been prepared for submission; it has not been submitted or
+approved by GNOME Extensions.
+
+The extension overrides `WorkspaceLayout` slot calculation and native preview
+interaction using `InjectionManager`. It restores those methods and modified
+actors, disconnects signals, destroys custom controls, and removes pending
+sources on disable. Saved sessions use GSettings and desktop application IDs;
+there are no external services, background daemons, or bundled dependencies.
+
+Validation: Node grouping/layout/session tests, JavaScript syntax checks,
+strict schema validation, and an isolated GNOME Shell 50.6 test with real helper
+windows. The restore test substitutes the helper launcher and stable app ID.
+Physical pointer/touch behavior, multiple monitors, app-specific new-window
+support, and interaction with other overview extensions need desktop testing.
+See README for the repeatable test command and known headless warnings.
+
+For screenshots use your own desktop with non-sensitive example apps. Headless
+test windows are diagnostic fixtures, not representative app contents.

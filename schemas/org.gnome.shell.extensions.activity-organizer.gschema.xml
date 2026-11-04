@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.activity-organizer" path="/org/gnome/shell/extensions/activity-organizer/">
+    <key name="groups" type="s">
+      <default>'[{"id":"work","name":"Work","appIds":[],"titlePatterns":[]},{"id":"personal","name":"Personal","appIds":[],"titlePatterns":[]}]'</default>
+      <summary>Ordered groups and automatic matching rules</summary>
+    </key>
+    <key name="collapse-on-overview" type="b">
+      <default>true</default>
+      <summary>Collapse window stacks when entering Activities</summary>
+    </key>
+    <key name="saved-sessions" type="s">
+      <default>'[]'</default>
+      <summary>Persistent saved versions of custom window groups</summary>
+    </key>
+    <key name="autosave-group-sessions" type="b">
+      <default>true</default>
+      <summary>Keep a reusable app/window snapshot when assigning group members</summary>
+    </key>
+  </schema>
+</schemalist>
