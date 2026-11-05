@@ -42,6 +42,11 @@ export default class ActivityOrganizer extends Extension {
         this._layouts = new Map();
         this._previewState = new Map();
         this._previewGroups = new WeakMap();
+        this._groupActors = new WeakMap();
+        this._temporaryGroups = [];
+        this._temporaryCounter = 0;
+        this._rightClickGroup = null;
+        this._dragSource = null;
         this._assignments = new Map();
         this._windowSignals = new Map();
         this._signals = [];
@@ -93,6 +98,16 @@ export default class ActivityOrganizer extends Extension {
             const info = owner._previewGroups.get(this);
             if (info && !owner._exiting)
                 owner._restack(info.record);
+        });
+        this._injections.overrideMethod(WindowPreview.prototype, 'handleDragOver', original => function (source, ...args) {
+            if (owner._canDropOnPreview(source, this))
+                return DND.DragMotionResult.MOVE_DROP;
+            return original.call(this, source, ...args);
+        });
+        this._injections.overrideMethod(WindowPreview.prototype, 'acceptDrop', original => function (source, ...args) {
+            if (owner._canDropOnPreview(source, this))
+                return owner._dropOnPreview(source, this);
+            return original.call(this, source, ...args);
         });
         this._connect(this._settings, 'changed', () => {
             this._readGroups();
@@ -148,12 +163,15 @@ export default class ActivityOrganizer extends Extension {
                     title: window.get_title() ?? ''};
             });
     }
+    _allGroups() {
+        return [...this._groups, ...this._temporaryGroups];
+    }
     _groupItems(groupId) {
         return this._liveItems().filter(item =>
-            groupForWindow(item, this._groups, this._assignments.get(item.key)) === groupId);
+            groupForWindow(item, this._allGroups(), this._assignments.get(item.key)) === groupId);
     }
     _saveSession(groupId, automatic = false, clearIfEmpty = false) {
-        if (!this._sessionsValid)
+        if (!this._sessionsValid || !this._groups.some(group => group.id === groupId))
             return;
         const windows = snapshotWindows(this._groupItems(groupId));
         if (!windows.length) {
@@ -211,6 +229,11 @@ export default class ActivityOrganizer extends Extension {
                 window.connect('unmanaged', () => this._queueRefresh()),
             ]);
         }
+        this._pruneTemporaryGroups();
+    }
+    _pruneTemporaryGroups() {
+        const assigned = new Set(this._assignments.values());
+        this._temporaryGroups = this._temporaryGroups.filter(group => assigned.has(group.id));
     }
     _queueRefresh() {
         if (this._pending)
@@ -242,6 +265,7 @@ export default class ActivityOrganizer extends Extension {
                 appId: app?.get_id() ?? window.get_wm_class() ?? 'unknown',
                 appName: app?.get_name() ?? window.get_wm_class() ?? 'Application',
                 title: window.get_title() ?? '',
+                dragging: preview.inDrag,
                 width: preview.boundingBox.width, height: preview.boundingBox.height,
             };
         });
@@ -253,7 +277,7 @@ export default class ActivityOrganizer extends Extension {
         const area = {x: box.x1 + 12 * scale, y: box.y1 + 64 * scale,
             width: Math.max(1, box.get_width() - 24 * scale),
             height: Math.max(1, box.get_height() - 76 * scale)};
-        const stacks = makeStacks(this._items(layout), this._groups, this._assignments);
+        const stacks = makeStacks(this._items(layout), this._allGroups(), this._assignments);
         if (!stacks.some(stack => stack.id === record.expandedId))
             record.expandedId = null;
         record.specs = layoutStacks(stacks, area, record.expandedId, scale);
@@ -315,17 +339,18 @@ export default class ActivityOrganizer extends Extension {
             return;
         record.signature = signature;
         record.toolbar.destroy_all_children();
-        const back = button(record.expandedId ? '← All app stacks' : 'App stacks', () => this._expand(record, null));
+        const back = record.expandedId ? button('← Back', () => this._expand(record, null)) : null;
         const create = button('+ Group', () => this._newGroup());
         const preferences = button('⚙', () => { Main.overview.hide(); this.openPreferences(); });
-        record.toolbar.add_child(back);
+        if (back)
+            record.toolbar.add_child(back);
         const targets = row('ao-targets');
         targets.x_expand = true;
         record.toolbar.add_child(targets);
         record.toolbar.add_child(create);
         record.toolbar.add_child(preferences);
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        const available = Math.max(0, width - [back, create, preferences].reduce((sum, actor) => sum + actor.get_preferred_width(-1)[1], 0) - 48 * scale);
+        const available = Math.max(0, width - [back, create, preferences].filter(Boolean).reduce((sum, actor) => sum + actor.get_preferred_width(-1)[1], 0) - 48 * scale);
         const choices = [];
         for (const group of this._groups) {
             const target = button(`${group.name}${this._versions(group.id).length ? ' ↻' : ''}`, () => {
@@ -380,10 +405,14 @@ export default class ActivityOrganizer extends Extension {
             record.layout._container.add_child(header);
             decoration = {actor: header, header, toggle};
             record.decorations.set(group.id, decoration);
-            if (group.customId)
-                this._dropTarget(header, group.customId);
+            this._groupActors.set(header, {record, id: group.id});
+            header._delegate = {
+                handleDragOver: source => this._canDropOnStack(source, record, group.id)
+                    ? DND.DragMotionResult.MOVE_DROP : DND.DragMotionResult.CONTINUE,
+                acceptDrop: source => this._dropOnStack(source, record, group.id),
+            };
         }
-        decoration.toggle.label = `${group.name}  ·  ${group.windows.length}${group.expanded ? '  ▴' : group.windows.length > 1 ? '  ▾' : ''}`;
+        decoration.toggle.label = `${group.name}${group.temporary ? ' (temporary)' : ''}  ·  ${group.windows.length}${group.expanded ? '  ▴' : group.windows.length > 1 ? '  ▾' : ''}`;
         decoration.toggle.accessible_name = `${group.name}, ${group.windows.length} windows, ${group.expanded ? 'collapse' : 'expand'}`;
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         const [, naturalWidth] = decoration.actor.get_preferred_width(-1);
@@ -415,8 +444,28 @@ export default class ActivityOrganizer extends Extension {
     _trackPreview(preview, layout) {
         if (this._previewState.has(preview))
             return;
-        this._previewState.set(preview, {layout, reactive: preview.reactive,
-            canFocus: preview.can_focus, iconVisible: preview._icon.visible});
+        const state = {layout, reactive: preview.reactive,
+            canFocus: preview.can_focus, iconVisible: preview._icon.visible};
+        state.dragBegin = preview.connect('drag-begin', () => {
+            const record = this._layouts.get(layout);
+            this._dragSource = {preview, windows: this._dragWindows(preview),
+                record, expandedId: record?.expandedId, accepted: false};
+            // Reveal the other stacks so a selected window can be dropped on
+            // them without first collapsing its expanded source group.
+            if (record)
+                record.expandedId = null;
+            this._queueRefresh();
+        });
+        state.dragEnd = preview.connect('drag-end', () => {
+            if (this._dragSource?.preview === preview) {
+                const drag = this._dragSource;
+                if (!drag.accepted && this._layouts.has(layout))
+                    drag.record.expandedId = drag.expandedId;
+                this._dragSource = null;
+                this._queueRefresh();
+            }
+        });
+        this._previewState.set(preview, state);
     }
     _captureContextClick(event) {
         const type = event.type();
@@ -424,11 +473,22 @@ export default class ActivityOrganizer extends Extension {
             return Clutter.EVENT_PROPAGATE;
         if (event.get_button() !== Clutter.BUTTON_SECONDARY)
             return Clutter.EVENT_PROPAGATE;
+        if (type === Clutter.EventType.BUTTON_RELEASE && this._rightClickGroup) {
+            const {source, record, id} = this._rightClickGroup;
+            this._rightClickGroup = null;
+            this._stackMenu(source, record, id);
+            return Clutter.EVENT_STOP;
+        }
         if (type === Clutter.EventType.BUTTON_RELEASE && this._rightClickPreview) {
             const preview = this._rightClickPreview;
             this._rightClickPreview = null;
-            if (!preview._destroyed)
-                this._windowMenu(preview);
+            if (!preview._destroyed) {
+                const info = this._previewGroups.get(preview);
+                if (info && !info.group.expanded)
+                    this._stackMenu(preview, info.record, info.group.id);
+                else
+                    this._windowMenu(preview);
+            }
             return Clutter.EVENT_STOP;
         }
         if (type !== Clutter.EventType.BUTTON_PRESS || !Main.overview.visible || this._exiting || this._dialog || this._menu?.isOpen ||
@@ -436,8 +496,14 @@ export default class ActivityOrganizer extends Extension {
             return Clutter.EVENT_PROPAGATE;
         const [x, y] = event.get_coords();
         let actor = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-        while (actor && !this._previewState.has(actor))
+        while (actor && !this._previewState.has(actor)) {
+            const group = this._groupActors.get(actor);
+            if (group) {
+                this._rightClickGroup = {...group, source: actor};
+                return Clutter.EVENT_STOP;
+            }
             actor = actor.get_parent();
+        }
         // Native preview children can be picked through their workspace actor
         // during scale transitions. Hit-test the rendered front surface as well.
         if (!actor) {
@@ -513,6 +579,7 @@ export default class ActivityOrganizer extends Extension {
     _prepareExit() {
         this._exiting = true;
         this._rightClickPreview = null;
+        this._rightClickGroup = null;
         this._menu?.close();
         for (const record of this._layouts.values()) {
             const previews = new Map([...record.layout._windows.keys()].map(preview => [preview.metaWindow, preview]));
@@ -538,7 +605,7 @@ export default class ActivityOrganizer extends Extension {
     }
     _assign(window, id) {
         const item = this._liveItems().find(item => item.key === window);
-        const previous = item ? groupForWindow(item, this._groups, this._assignments.get(window)) : null;
+        const previous = item ? groupForWindow(item, this._allGroups(), this._assignments.get(window)) : null;
         if (id === null)
             this._assignments.delete(window);
         else
@@ -546,13 +613,80 @@ export default class ActivityOrganizer extends Extension {
         for (const record of this._layouts.values())
             record.expandedId = null;
         if (this._settings.get_boolean('autosave-group-sessions')) {
-            const current = item ? groupForWindow(item, this._groups, this._assignments.get(window)) : null;
+            const current = item ? groupForWindow(item, this._allGroups(), this._assignments.get(window)) : null;
             if (previous !== UNGROUPED && previous !== current)
                 this._saveSession(previous, true, true);
             if (current !== UNGROUPED && current)
                 this._saveSession(current, true);
         }
+        this._pruneTemporaryGroups();
         this._queueRefresh();
+    }
+    _dragWindows(source) {
+        if (this._dragSource?.preview === source)
+            return this._dragSource.windows;
+        const info = this._previewGroups.get(source);
+        return info && !info.group.expanded
+            ? info.group.windows.map(item => item.key) : source?.metaWindow ? [source.metaWindow] : [];
+    }
+    _canDropOnStack(source, record, id, target = null) {
+        if (this._exiting || !source?.metaWindow)
+            return false;
+        const group = record.specs.find(group => group.id === id && !group.hidden);
+        if (!group)
+            return false;
+        const members = new Set(group.customId || !target ? group.windows.map(item => item.key) : [target.metaWindow]);
+        return this._dragWindows(source).some(window => !members.has(window));
+    }
+    _canDropOnPreview(source, preview) {
+        const info = this._previewGroups.get(preview);
+        return Boolean(info && preview !== source && this._canDropOnStack(source, info.record, info.group.id,
+            this._individualDropTarget(info) ? preview : null));
+    }
+    _individualDropTarget(info) {
+        return info.group.expanded || (!info.group.customId && this._dragSource?.expandedId === info.group.id);
+    }
+    _dropOnPreview(source, preview) {
+        const info = this._previewGroups.get(preview);
+        return info ? this._dropOnStack(source, info.record, info.group.id, this._individualDropTarget(info) ? preview : null) : false;
+    }
+    _dropOnStack(source, record, id, target = null) {
+        if (!this._canDropOnStack(source, record, id, target))
+            return false;
+        const group = record.specs.find(group => group.id === id);
+        let destination = group.customId;
+        if (!destination) {
+            destination = GLib.uuid_string_random();
+            this._temporaryGroups.push({id: destination, name: `Group ${++this._temporaryCounter}`,
+                appIds: [], titlePatterns: [], temporary: true});
+        }
+        const members = group.customId ? [] : target ? [target.metaWindow] : group.windows.map(item => item.key);
+        // Assign as one transaction: intermediate snapshots must not remember
+        // half of a dragged stack, and temporary groups never enter settings.
+        const windows = [...new Set([...members, ...this._dragWindows(source)])];
+        const items = new Map(this._liveItems().map(item => [item.key, item]));
+        const previous = new Set(windows.map(window =>
+            groupForWindow(items.get(window) ?? {}, this._allGroups(), this._assignments.get(window))));
+        const targetWindow = group.windows[0].key;
+        for (const window of windows) {
+            this._assignments.set(window, destination);
+            if (!window.is_on_all_workspaces() && window.get_workspace() !== targetWindow.get_workspace())
+                window.change_workspace(targetWindow.get_workspace());
+            if (window.get_monitor() !== targetWindow.get_monitor())
+                window.move_to_monitor(targetWindow.get_monitor());
+        }
+        if (this._settings.get_boolean('autosave-group-sessions')) {
+            for (const groupId of previous)
+                this._saveSession(groupId, true, true);
+            this._saveSession(destination, true);
+        }
+        this._pruneTemporaryGroups();
+        if (this._dragSource?.preview === source)
+            this._dragSource.accepted = true;
+        for (const layout of this._layouts.values())
+            layout.expandedId = null;
+        this._queueRefresh();
+        return true;
     }
     _dropTarget(actor, id) {
         actor._delegate = {
@@ -560,7 +694,11 @@ export default class ActivityOrganizer extends Extension {
             acceptDrop: source => {
                 if (!source.metaWindow)
                     return false;
-                this._assign(source.metaWindow, id);
+                const windows = this._dragWindows(source);
+                for (const window of windows)
+                    this._assign(window, id);
+                if (this._dragSource?.preview === source)
+                    this._dragSource.accepted = true;
                 return true;
             },
         };
@@ -579,15 +717,18 @@ export default class ActivityOrganizer extends Extension {
     _windowMenu(preview, source = preview) {
         const menu = this._popup(source);
         const item = this._liveItems().find(item => item.key === preview.metaWindow);
-        const membership = item ? groupForWindow(item, this._groups, this._assignments.get(preview.metaWindow)) : UNGROUPED;
+        const membership = item ? groupForWindow(item, this._allGroups(), this._assignments.get(preview.metaWindow)) : UNGROUPED;
         const current = membership === UNGROUPED ? null : membership;
         if (current)
             menu.addAction('Remove from group', () => this._assign(preview.metaWindow, UNGROUPED));
-        for (const group of this._groups.filter(group => group.id !== current))
+        for (const group of this._allGroups().filter(group => group.id !== current))
             menu.addAction(`${current ? 'Move' : 'Add'} to ${group.name}`, () => this._assign(preview.metaWindow, group.id));
         menu.addAction('Use automatic grouping rules', () => this._assign(preview.metaWindow, null));
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         menu.addAction('Create custom group…', () => this._newGroup(preview.metaWindow));
+        const info = this._previewGroups.get(preview);
+        if (info)
+            menu.addAction('Group actions…', () => this._stackMenu(source, info.record, info.group.id));
         menu.open();
     }
     _stackMenu(source, record, id) {
@@ -597,13 +738,21 @@ export default class ActivityOrganizer extends Extension {
         const menu = this._popup(source);
         menu.addAction(group.expanded ? 'Collapse stack' : 'Expand stack',
             () => this._expand(record, group.expanded ? null : id));
-        if (group.customId) {
+        if (group.temporary) {
+            menu.addAction('Save as reusable group…', () => this._newGroup(null, group.customId));
+            menu.addAction('Ungroup windows', () => {
+                for (const item of group.windows)
+                    this._assign(item.key, UNGROUPED);
+            });
+        } else if (group.customId) {
             menu.addAction('Save session version', () => this._saveSession(group.customId));
             for (const version of this._versions(group.customId))
                 menu.addAction(`Reopen: ${versionLabel(version)}`, () => this._restoreSession(group.customId, version));
         } else {
             menu.addAction('Save as reusable group', () => this._saveAppStack(group));
         }
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        menu.addAction('Close all windows in group', () => this._closeStack(group));
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         for (let i = 0; i < global.workspace_manager.n_workspaces; i++) {
             const workspace = global.workspace_manager.get_workspace_by_index(i);
@@ -614,6 +763,15 @@ export default class ActivityOrganizer extends Extension {
             this._moveStack(group, workspace);
         });
         menu.open();
+    }
+    _closeStack(group) {
+        if (group.customId && this._settings.get_boolean('autosave-group-sessions'))
+            this._saveSession(group.customId, true);
+        const time = global.get_current_time();
+        for (const item of group.windows) {
+            if (item.key.can_close())
+                item.key.delete(time);
+        }
     }
     _savedSessionMenu(source, groupId) {
         const menu = this._popup(source);
@@ -706,13 +864,16 @@ export default class ActivityOrganizer extends Extension {
         }
         workspace.activate(global.get_current_time());
     }
-    _newGroup(window = null) {
+    _newGroup(window = null, temporaryId = null) {
         if (this._dialog)
             return;
         const dialog = new ModalDialog.ModalDialog();
         this._dialog = dialog;
         dialog.contentLayout.add_child(textLabel('Create a window group', 'ao-dialog-title'));
         const entry = new St.Entry({hint_text: 'Work, Research, Project Atlas…', can_focus: true, style_class: 'ao-group-entry'});
+        const temporary = this._temporaryGroups.find(group => group.id === temporaryId);
+        if (temporary)
+            entry.set_text(temporary.name);
         dialog.contentLayout.add_child(entry);
         dialog.setButtons([
             {label: 'Cancel', key: Clutter.KEY_Escape, action: () => dialog.close()},
@@ -720,8 +881,13 @@ export default class ActivityOrganizer extends Extension {
                 const name = entry.get_text().trim();
                 if (!name)
                     return;
-                const id = GLib.uuid_string_random();
+                const id = temporary?.id ?? GLib.uuid_string_random();
                 this._settings.set_string('groups', JSON.stringify([...this._groups, {id, name, appIds: [], titlePatterns: []}]));
+                this._readGroups();
+                if (temporary) {
+                    this._temporaryGroups = this._temporaryGroups.filter(group => group.id !== id);
+                    this._saveSession(id);
+                }
                 if (window)
                     this._assign(window, id);
                 dialog.close();
@@ -751,6 +917,8 @@ export default class ActivityOrganizer extends Extension {
     _restorePreview(preview, state) {
         if (preview._destroyed)
             return;
+        preview.disconnect(state.dragBegin);
+        preview.disconnect(state.dragEnd);
         preview.reactive = state.reactive;
         preview.can_focus = state.canFocus;
         preview._icon.visible = state.iconVisible;
@@ -767,6 +935,8 @@ export default class ActivityOrganizer extends Extension {
             GLib.Source.remove(this._pending);
         this._pending = 0;
         this._rightClickPreview = null;
+        this._rightClickGroup = null;
+        this._dragSource = null;
         this._menu?.destroy();
         this._menu = null;
         this._destroyDialog();
@@ -795,6 +965,8 @@ export default class ActivityOrganizer extends Extension {
         this._windowSignals?.clear();
         this._signals = [];
         this._previewGroups = new WeakMap();
+        this._groupActors = new WeakMap();
+        this._temporaryGroups = [];
         this._sessions = [];
         this._groups = [];
         this._settings = null;

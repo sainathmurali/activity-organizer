@@ -6,17 +6,25 @@ This replaces the overview's window arrangement. It is not a sidebar or a separa
 
 Author identity: [sainathmurali](https://github.com/sainathmurali), using the same `sainathmurali.github.io` namespace and `bionichuman` donation entry as Top Panel Note.
 
+![Default Activities compared with the same 13 windows organized into four app stacks](docs/images/showcase.png)
+
+The showcase uses real captures with the extension disabled/enabled in an isolated GNOME session. The same 13 windows are open in both views, with sample documents. The combined graphic was composed with the built-in image-generation tool; the unmodified [default](docs/images/default-activities.png) and [organized](docs/images/organized-activities.png) captures are also available.
+
 ## Using stacks
 
 - Each app has one overlapping stack with an app label and window count. Rear windows peek out behind the front window.
 - Click a stack (or its label) to expand its windows across the overview. Other stacks hide while it is expanded.
 - Click an expanded window to activate it. Native window titles, close controls, workspace navigation, and window dragging remain available.
-- Click **All app stacks** or the expanded stack's label to collapse it.
+- Click **Back** or the expanded stack's label to collapse it. The default view has no redundant App stacks button.
 - A single app window opens directly when clicked; its label can still expand it.
 
 Stacks are per workspace and monitor, following GNOME's native window membership. They do not mix windows from unrelated workspaces into one desktop.
 
 ## Custom groups
+
+Drag a window directly onto another window or a stack to group them without creating a saved group first. Dropping onto an automatic app stack creates a **temporary group**. Dropping onto an existing group adds to that group. Dragging a collapsed stack moves its windows together; expand first to select one window. Starting a drag from an expanded group reveals other stacks as drop destinations. The source window remains selected throughout that drag.
+
+Temporary groups are labeled **(temporary)**, do not appear in preferences or the saved-group toolbar, and are not written to saved sessions. They survive ordinary overview open/close cycles while the extension stays enabled, and disappear when emptied, disabled, or logged out. Right-click their stack or its header and choose **Save as reusable group…** to name and save the current app/window membership. **Ungroup windows** dissolves a temporary group without closing its windows.
 
 Click **+ Group** in the overview to create a named group, such as Work or Project Atlas. Drag a window onto that group's name in the toolbar, or right-click a window and choose **Add to Work**. A custom group can contain windows from different apps, and expands exactly like an app stack. Empty groups remain available as drop targets in the toolbar.
 
@@ -24,7 +32,7 @@ For example, Work can contain one VS Code window, two browser windows, and a Fil
 
 Expand a stack and click **Move ▾** on a window to choose **Remove from group** or **Move to another group**. Removing returns the window to its app stack, even when a rule would match it. **Group ▾** adds an app-stack window to a custom group. The same actions are available by right-click. **Use automatic grouping rules** clears a manual override.
 
-The **⋯** button beside a stack's label expands/collapses it or moves the whole stack to another workspace, including a new workspace. Pinned windows remain pinned.
+Right-click a collapsed stack or its header, or use **⋯**, for group actions. **Close all windows in group** requests normal app-window closure; apps can show their usual unsaved-document prompts. Saved groups retain their last session for reopening. An expanded window's menu also offers **Group actions…**. The same group menu moves the stack to another workspace, including a new workspace. Pinned windows remain pinned.
 
 Group definitions and saved sessions persist across logout and reboot. By default, adding, moving, or removing windows updates an automatic save of each affected group. Closing windows keeps the last saved session available for reopening. Use **⋯ → Save session version** to retain a separate snapshot; up to ten versions are kept per group. **Save as reusable group** turns an app stack into a saved group.
 
@@ -68,7 +76,7 @@ Log out and log back in to load the newly installed or updated code, then:
 gnome-extensions enable activityOrganizer@sainathmurali.github.io
 ```
 
-The packaged ZIP in `dist/` is release 4.0.1, containing the native stack layout, saved app sessions, and window move/remove menus under `activityOrganizer@sainathmurali.github.io`. The release uses `version-name`; extensions.gnome.org assigns its own numeric submission version. The earlier `activity-organizer@local` prototype is a separate extension and should be disabled if installed. Building or testing does not enable the extension in your desktop session.
+The packaged ZIP in `dist/` is release 4.1.0 under `activityOrganizer@sainathmurali.github.io`. The release uses `version-name`; extensions.gnome.org assigns its own numeric submission version. The earlier `activity-organizer@local` prototype is a separate extension and should be disabled if installed. Building or testing does not enable the extension in your desktop session.
 
 To restore GNOME's original layout:
 
@@ -91,13 +99,27 @@ An isolated **GNOME Shell 50.6** smoke test uses six actual test windows to veri
 Repeat that smoke test in a disposable headless compositor:
 
 ```sh
-timeout 45s dbus-run-session -- gnome-shell-test-tool \
+timeout 60s dbus-run-session -- gnome-shell-test-tool \
   --headless \
   --extension dist/activityOrganizer@sainathmurali.github.io.shell-extension.zip \
   tests/shell-smoke.js
 ```
 
 This uses temporary extension/settings directories. Captures default to `/tmp/activity-organizer-current-stacks.png` and `-expanded.png`. Override the prefix with `ACTIVITY_ORGANIZER_SCREENSHOT`. The preferences harness locates GNOME's private support library in common Fedora/Debian library paths.
+
+The smoke test also covers temporary window-on-window grouping, group-header drops, revealing destinations during drag, promotion to a saved group, group closing, and removal of the default App stacks button. Physical pointer movement still needs desktop testing; native drag handlers and signals are exercised directly in the test.
+
+To recreate the public before/after screenshots with real apps and harmless sample documents (requires gedit, Text Editor, Files, and Calculator):
+
+```sh
+timeout 90s dbus-run-session -- gnome-shell-test-tool --headless \
+  --extra-filter Gedit --extra-filter org.gnome.TextEditor \
+  --extra-filter org.gnome.Nautilus --extra-filter org.gnome.Calculator \
+  --extension dist/activityOrganizer@sainathmurali.github.io.shell-extension.zip \
+  tests/showcase.js
+```
+
+This writes `/tmp/activity-organizer-default-activities.png` and `/tmp/activity-organizer-organized-activities.png`, verifies the same windows appear in both views, and leaves your desktop extension settings unchanged. The source documents are created under `/tmp/activity-organizer-showcase-sample`. The showcase composition prompt is in `docs/images/showcase-prompt.txt`.
 
 Only GNOME 50 is declared supported. The extension uses GNOME's native `WindowPreview` actors and changes the `WorkspaceLayout` slot calculation using `InjectionManager`. Disable restores the methods, preview flags/icons, decorations, timers, and signals. Extensions that also replace the overview window layout may conflict. For errors, inspect `journalctl --user -f -o cat`.
 

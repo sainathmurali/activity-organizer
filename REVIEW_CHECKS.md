@@ -1,4 +1,4 @@
-# Submission checks for 4.0.1
+# Submission checks for 4.1.0
 
 ## Name and metadata
 
@@ -15,7 +15,7 @@ prohibits trademarked names and phrases without express permission. Apple lists
 
 The UUID remains `activityOrganizer@sainathmurali.github.io`, using the author's
 existing namespace. The settings schema and saved-group data are unchanged.
-`version-name` is `4.0.1`; the deprecated numeric `version` field is omitted so
+`version-name` is `4.1.0`; the deprecated numeric `version` field is omitted so
 extensions.gnome.org can assign its submission number. The source URL points to
 the public repository. Only Shell 50 is declared supported.
 
@@ -31,6 +31,11 @@ the public repository. Only Shell 50 is declared supported.
   persistence/restoration, duplicate prevention, and disable/re-enable pass.
 - The smoke test also disables while a group dialog is closing and verifies
   synchronous destruction and callback cleanup.
+- Temporary window-on-window groups, selected-window dragging from expanded
+  stacks, group-header drops, promotion to saved groups, normal group closing,
+  and the default toolbar without the App stacks button pass.
+- A separate isolated showcase run captures 13 real app windows before and after
+  enabling the extension, verifying that the window set is unchanged.
 - Shexli **0.2.1** on the built ZIP: **clean, zero findings**. The full report is
   supplied alongside the release assets as `shexli-report.json`.
 

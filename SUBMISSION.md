@@ -13,7 +13,7 @@ https://extensions.gnome.org/upload/ while signed in to the extension owner's ac
 The ZIP contains runtime JavaScript, stylesheet, metadata, schema source, and
 license. Developer tests and build files stay in the source repository.
 GNOME Extensions assigns its own extension version when accepting an upload.
-The visible release number is supplied by `version-name` (4.0.1).
+The visible release number is supplied by `version-name` (4.1.0).
 This package has been prepared for submission; it has not been submitted or
 approved by GNOME Extensions.
 
@@ -30,8 +30,10 @@ Physical pointer/touch behavior, multiple monitors, app-specific new-window
 support, and interaction with other overview extensions need desktop testing.
 See README for the repeatable test command and known headless warnings.
 
-Shexli 0.2.1 reports zero findings on the 4.0.1 submission ZIP. See
+Shexli 0.2.1 reports zero findings on the 4.1.0 submission ZIP. See
 `REVIEW_CHECKS.md` for the checks, analyzer environment, and naming decision.
 
-For screenshots use your own desktop with non-sensitive example apps. Headless
-test windows are diagnostic fixtures, not representative app contents.
+For the website picture upload use `docs/images/showcase.png`. It compares
+default Activities with the extension disabled against organized app stacks,
+using the same 13 real windows with sample documents. Original source captures
+are included in that directory. The media belongs outside the runtime ZIP.

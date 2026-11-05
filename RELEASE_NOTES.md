@@ -1,18 +1,17 @@
-Activity Organizer 4.0.1 prepares the extension for GNOME Extensions review.
+Activity Organizer 4.1.0 adds temporary drag-and-drop groups.
 
-- Use `version-name` for the visible release number and leave numeric submission
-  version assignment to extensions.gnome.org.
-- Destroy an open or closing group dialog synchronously when disabling.
-- Clarify native popup-manager lifetime and remove an unnecessary reference.
-- Shexli 0.2.1 reports zero findings on the submission ZIP.
+- Drop one window onto another window or stack to create a temporary group.
+- Drop onto an existing group thumbnail or header to add windows directly.
+- Drag a collapsed stack to move its members together; expand first to select one window.
+- Other stacks become visible while dragging from an expanded group.
+- Right-click a temporary group and choose **Save as reusable group…** to retain it.
+- Right-click a group for **Close all windows in group**. Apps retain their normal unsaved-document prompts.
+- The default toolbar no longer shows the redundant App stacks button. Expanded groups have **Back**.
 
-The display name remains Activity Organizer after checking GNOME's naming and
-trademark rules. The UUID and settings schema are unchanged, preserving settings
-and saved groups.
+Temporary groups stay out of saved settings until you save them. Saved app/window versions remain available after closing a group.
 
-For GNOME Shell 50. Install the `.shell-extension.zip` asset with
-`gnome-extensions install --force PATH`, then log out and back in.
+The showcase image compares real default Activities with the same 13 windows organized into app stacks. Source screenshots are included in the repository.
 
-Restoration opens fresh app windows; app contents and internal tabs are managed
-by the apps. Some applications cannot open additional windows. GNOME Extensions
-submission/approval is separate from this GitHub release.
+For GNOME Shell 50. Unit checks, strict schema validation, the isolated GNOME test, and Shexli 0.2.1 pass with zero Shexli findings. Full pointer/touch interaction and multiple monitors still need desktop testing.
+
+Install the .shell-extension.zip asset, then log out and back in. GNOME Extensions submission and approval are separate from this GitHub release.

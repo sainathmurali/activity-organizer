@@ -38,6 +38,22 @@ test('collapsed stacks overlap; expanded windows are separated and other stacks 
         left.y + left.height <= right.y || right.y + right.height <= left.y);
 });
 
+test('temporary groups share layout behavior but remain distinguishable for saving', () => {
+    const temporary = {id: 'temp', name: 'Group 1', appIds: [], titlePatterns: [], temporary: true};
+    const stacks = makeStacks(windows, [...groups, temporary], new Map([[1, 'temp'], [4, 'temp']]));
+    const stack = stacks.find(item => item.customId === 'temp');
+    assert.equal(stack.temporary, true);
+    assert.deepEqual(stack.windows.map(item => item.key), [1, 4]);
+    assert.equal(stacks.find(item => item.customId === 'work').temporary, false);
+});
+
+test('a dragged front window exposes the next window as a drop target', () => {
+    const items = windows.slice(0, 2).map((item, index) => ({...item, dragging: index === 1}));
+    const result = layoutStacks(makeStacks(items, []), {x: 0, y: 0, width: 1200, height: 700});
+    assert.equal(result[0].slots[0].front, true);
+    assert.equal(result[0].slots[1].front, false);
+});
+
 test('geometry fits varied window counts, aspect ratios and scales without lost windows', () => {
     for (const count of [1, 2, 5, 20, 60]) {
         const items = Array.from({length: count}, (_, key) => ({key,

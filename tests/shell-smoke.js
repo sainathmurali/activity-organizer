@@ -69,6 +69,7 @@ export async function run() {
     let organizer = extension?.stateObj;
     check(organizer?._injections, `Extension failed to enable: ${extension?.error}`);
     stableHelperIdentity(organizer);
+    new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'}).set_boolean('show-banners', false);
     new Gio.Settings({schema_id: 'org.gnome.desktop.search-providers'}).set_boolean('disable-external', true);
     for (let i = 0; i < 6; i++)
         await Scripting.createTestWindow({width: 800, height: 540});
@@ -86,6 +87,8 @@ export async function run() {
     let record = [...organizer._layouts.values()].find(item => item.specs.some(spec => spec.windows.length === 6));
     check(record, 'Six windows from one app should be a single native overview stack');
     check(!organizer._panel, 'There must not be a sidebar');
+    check(!record.toolbar.get_children().some(actor => actor.label === 'App stacks'),
+        'The default toolbar must omit the redundant app-stacks button');
     const app = record.specs[0];
     let windows = app.windows;
     const seat = global.stage.get_context().get_backend().get_default_seat();
@@ -96,6 +99,8 @@ export async function run() {
     check(record.toolbar.get_children().every(child => !(child instanceof St.ScrollView)), 'Toolbar must not contain a scrollbar');
     await rightClick(windows.at(-1).preview, organizer);
     check(organizer._menu?.isOpen, 'Right-click should open the collapsed window menu');
+    check(organizer._menu._getMenuItems().some(item => item.label?.text === 'Close all windows in group'),
+        'Right-clicking a collapsed stack must expose group closing');
     check(!record.expandedId, 'Right-click must not expand the stack');
     organizer._menu.close();
     await Scripting.sleep(150);
@@ -105,6 +110,46 @@ export async function run() {
     check(Main.overview.visible, 'First click should expand instead of activating a window');
     check(record.specs[0].expanded, 'App stack should expand');
     check(record.layout.getFocusChain().length === 6, 'Expanded windows should all be focusable');
+    const groupsBeforeDrop = organizer._settings.get_string('groups');
+    const sessionsBeforeDrop = organizer._settings.get_string('saved-sessions');
+    windows[0].preview._onDragBegin(null, 0);
+    await Scripting.sleep(250);
+    check(windows.at(-1).preview.reactive, 'A non-dragged preview must remain a live drop target');
+    check(windows.at(-1).preview.acceptDrop(windows[0].preview, null, 0, 0, 0),
+        'Dropping one expanded window on another must create a temporary group');
+    windows[0].preview._onDragEnd(null, 0, false);
+    await Scripting.sleep(300);
+    const temporary = organizer._temporaryGroups[0];
+    check(temporary && organizer._groupItems(temporary.id).length === 2, 'Temporary group needs both dropped windows');
+    check(organizer._settings.get_string('groups') === groupsBeforeDrop &&
+        organizer._settings.get_string('saved-sessions') === sessionsBeforeDrop,
+    'Temporary drops must not write personal groups or saved sessions');
+    const tempSpec = record.specs.find(spec => spec.customId === temporary.id);
+    const remaining = record.specs.find(spec => !spec.customId);
+    organizer._expand(record, remaining.id);
+    await Scripting.sleep(250);
+    windows[2].preview._onDragBegin(null, 0);
+    await Scripting.sleep(250);
+    check(record.specs.every(spec => !spec.hidden), 'Dragging from an expanded group must reveal drop destinations');
+    check(record.decorations.get(tempSpec.id).actor._delegate.acceptDrop(windows[2].preview),
+        'Group header must accept a selected window');
+    windows[2].preview._onDragEnd(null, 0, false);
+    await Scripting.sleep(250);
+    check(organizer._groupItems(temporary.id).length === 3, 'Header drop must add only the selected window');
+    organizer._stackMenu(windows[0].preview, record, tempSpec.id);
+    organizer._menu._getMenuItems().find(item => item.label?.text === 'Save as reusable group…').activate(null);
+    organizer._dialog.contentLayout.get_children().find(actor => actor instanceof St.Entry).set_text('Dropped group');
+    organizer._dialog.buttonLayout.get_children().find(actor => actor.label === 'Create').emit('clicked', 1);
+    await Scripting.sleep(250);
+    check(!organizer._temporaryGroups.length && organizer._groups.some(group => group.id === temporary.id),
+        'Saving a temporary group must promote it without changing membership');
+    check(organizer._versions(temporary.id)[0].windows.length === 3, 'Promotion must save the current app/window counts');
+    for (const item of windows)
+        organizer._assign(item.key, null);
+    organizer._settings.set_string('groups', groupsBeforeDrop);
+    organizer._settings.set_string('saved-sessions', sessionsBeforeDrop);
+    organizer._expand(record, app.id);
+    await Scripting.sleep(300);
     check(windows[0].preview.overlayEnabled, 'Expanded windows should retain native close/title controls');
     await rightClick(windows[0].preview, organizer);
     check(organizer._menu?.isOpen, 'Right-click should open an expanded window menu');
@@ -115,7 +160,9 @@ export async function run() {
     await Scripting.sleep(350);
     check(!record.expandedId, 'All app stacks should collapse the view');
     // Exercise a drop target and manual assignment into mixed custom groups.
-    const targets = record.toolbar.get_children()[1];
+    organizer._expand(record, app.id);
+    await Scripting.sleep(250);
+    const targets = record.toolbar.get_children().find(actor => actor.has_style_class_name('ao-targets'));
     check(targets.get_first_child()._delegate.acceptDrop(windows[0].preview), 'Work drop target should accept a window');
     organizer._assign(windows[1].key, 'work');
     organizer._assign(windows[2].key, 'personal');
@@ -226,6 +273,15 @@ export async function run() {
     organizer._restoreSession('work', organizer._versions('work')[0]);
     check(!organizer._restoreTimer && launches === 2, 'Reopening a complete group must not duplicate windows');
     organizer._launchSavedWindow = launch;
+    Main.overview.show();
+    await Scripting.sleep(400);
+    const restoredRecord = [...organizer._layouts.values()].find(item => item.specs.some(spec => spec.customId === 'work'));
+    const restoredStack = restoredRecord.specs.find(spec => spec.customId === 'work');
+    organizer._stackMenu(restoredStack.windows[0].preview, restoredRecord, restoredStack.id);
+    organizer._menu._getMenuItems().find(item => item.label?.text === 'Close all windows in group').activate(null);
+    await Scripting.sleep(500);
+    check(organizer._groupItems('work').length === 0 && organizer._versions('work').length > 0,
+        'Close group must close its windows and retain the saved session');
     organizer._restoreSession('work', {...organizer._versions('work')[0], windows: [
         ...organizer._versions('work')[0].windows, organizer._versions('work')[0].windows[0]]});
     await Main.extensionManager.disableExtension('activityOrganizer@sainathmurali.github.io');

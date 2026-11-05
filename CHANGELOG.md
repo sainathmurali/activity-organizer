@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 4.1.0
+
+- Drop windows directly onto another window or stack to create temporary groups.
+- Drop onto group thumbnails or headers to add windows; collapsed stacks move together and expanded stacks let you select a window.
+- Reveal other stacks during a selected-window drag and preserve that selection while the source collapses.
+- Promote a temporary group to a named, saved group from its right-click menu.
+- Add right-click group actions, including normal closure of all group windows and ungrouping temporary groups.
+- Remove the redundant App stacks button from the default view; show Back only while expanded.
+- Add a real default-Activities versus organized-stacks showcase and its source captures.
+
 ## Version 4.0.1
 
 - Prepare metadata for GNOME Extensions review using `version-name` instead of a developer-assigned numeric version.
