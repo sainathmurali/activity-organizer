@@ -1,4 +1,4 @@
-# Submission checks for 4.1.0
+# Submission checks for 4.2.0
 
 ## Name and metadata
 
@@ -15,15 +15,18 @@ prohibits trademarked names and phrases without express permission. Apple lists
 
 The UUID remains `activityOrganizer@sainathmurali.github.io`, using the author's
 existing namespace. The settings schema and saved-group data are unchanged.
-`version-name` is `4.1.0`; the deprecated numeric `version` field is omitted so
+`version-name` is `4.2.0`; the deprecated numeric `version` field is omitted so
 extensions.gnome.org can assign its submission number. The source URL points to
-the public repository. Only Shell 50 is declared supported.
+the public repository. Shell 46, 47, 48, 49, and 50 are declared supported.
 
 ## Automated checks
 
 - `npm test`: grouping, rule overrides, stack geometry, saved-version retention,
   restore counts, and explicit removal from automatic saves pass.
 - `npm run check`: JavaScript syntax and strict GSettings schema validation pass.
+- `npm run check:compat`: the extension's generated layouts pass the native
+  upstream allocation, overlay/focus, activation, and drag/drop contracts from
+  Shell 46, 47, 48, 49, and 50. These run with lightweight backend substitutes.
 - `npm run pack`: runtime-only submission ZIP builds successfully, including
   schema XML and GPL license, with no compiled schemas or bundled dependencies.
 - Isolated GNOME Shell 50.6 smoke test: preferences, grouping, visible move/remove

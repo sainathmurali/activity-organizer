@@ -1,6 +1,6 @@
 # Activity Organizer
 
-Mission Control-style **window stacks in the GNOME Activities overview**, for GNOME Shell 50. Press Super or use the hot corner: VS Code windows stack together, browser windows stack together, Files windows stack together, and so on.
+**Window stacks in the GNOME Activities overview**, for GNOME Shell 46–50. Press Super or use the hot corner: VS Code windows stack together, browser windows stack together, Files windows stack together, and so on.
 
 This replaces the overview's window arrangement. It is not a sidebar or a separate window list.
 
@@ -8,7 +8,7 @@ Author identity: [sainathmurali](https://github.com/sainathmurali), using the sa
 
 ![Default Activities compared with the same 13 windows organized into four app stacks](docs/images/showcase.png)
 
-The showcase uses real captures with the extension disabled/enabled in an isolated GNOME session. The same 13 windows are open in both views, with sample documents. The combined graphic was composed with the built-in image-generation tool; the unmodified [default](docs/images/default-activities.png) and [organized](docs/images/organized-activities.png) captures are also available.
+The showcase places the same 13 windows side by side with the extension disabled and enabled in an isolated GNOME session, using sample documents. The original [default](docs/images/default-activities.png) and [organized](docs/images/organized-activities.png) captures are also available. Run `npm run showcase` to rebuild the comparison from those captures; this requires `rsvg-convert`.
 
 ## Using stacks
 
@@ -60,7 +60,7 @@ The grouped items are app **windows**, as shown in Activities. Internal browser/
 
 ## Install or update
 
-Requirements: GNOME Shell **50**, GTK 4/libadwaita, GJS, `gnome-extensions`, and `glib-compile-schemas`. There are no npm dependencies. Node is only used for developer checks.
+Requirements: GNOME Shell **46–50**, GTK 4/libadwaita, GJS, `gnome-extensions`, and `glib-compile-schemas`. There are no npm dependencies. Node is only used for developer checks.
 
 From this directory, build and install:
 
@@ -76,7 +76,7 @@ Log out and log back in to load the newly installed or updated code, then:
 gnome-extensions enable activityOrganizer@sainathmurali.github.io
 ```
 
-The packaged ZIP in `dist/` is release 4.1.0 under `activityOrganizer@sainathmurali.github.io`. The release uses `version-name`; extensions.gnome.org assigns its own numeric submission version. The earlier `activity-organizer@local` prototype is a separate extension and should be disabled if installed. Building or testing does not enable the extension in your desktop session.
+The packaged ZIP in `dist/` is release 4.2.0 under `activityOrganizer@sainathmurali.github.io`. The release uses `version-name`; extensions.gnome.org assigns its own numeric submission version. The earlier `activity-organizer@local` prototype is a separate extension and should be disabled if installed. Building or testing does not enable the extension in your desktop session.
 
 To restore GNOME's original layout:
 
@@ -119,9 +119,18 @@ timeout 90s dbus-run-session -- gnome-shell-test-tool --headless \
   tests/showcase.js
 ```
 
-This writes `/tmp/activity-organizer-default-activities.png` and `/tmp/activity-organizer-organized-activities.png`, verifies the same windows appear in both views, and leaves your desktop extension settings unchanged. The source documents are created under `/tmp/activity-organizer-showcase-sample`. The showcase composition prompt is in `docs/images/showcase-prompt.txt`.
+This writes `/tmp/activity-organizer-default-activities.png` and `/tmp/activity-organizer-organized-activities.png`, verifies the same windows appear in both views, and leaves your desktop extension settings unchanged. The source documents are created under `/tmp/activity-organizer-showcase-sample`.
 
-Only GNOME 50 is declared supported. The extension uses GNOME's native `WindowPreview` actors and changes the `WorkspaceLayout` slot calculation using `InjectionManager`. Disable restores the methods, preview flags/icons, decorations, timers, and signals. Extensions that also replace the overview window layout may conflict. For errors, inspect `journalctl --user -f -o cat`.
+GNOME Shell 46, 47, 48, 49, and 50 are declared supported. The shared overview and preview APIs were reviewed against the official source branches for all five releases. The native JavaScript allocation, overlay/focus, activation, and drag/drop contracts pass the compatibility harness for every version. The extension does not depend directly on the newer click-gesture API introduced in Shell 50.
+
+Only Shell 50.6 has been tested in a live compositor here. The compatibility harness uses lightweight actor/backend substitutes; it does not test the older GI libraries or replace a full desktop test on 46–49. To repeat the source contract checks:
+
+```sh
+python3 tests/fetch-shell-sources.py
+npm run check:compat
+```
+
+The extension uses GNOME's native `WindowPreview` actors and changes the `WorkspaceLayout` slot calculation using `InjectionManager`. Disable restores the methods, preview flags/icons, decorations, timers, and signals. Extensions that also replace the overview window layout may conflict. For errors, inspect `journalctl --user -f -o cat`.
 
 References: [GNOME extension development](https://gjs.guide/extensions/development/creating.html), [method overrides](https://gjs.guide/extensions/topics/extension.html), [GNOME 50 workspace layout](https://github.com/GNOME/gnome-shell/blob/gnome-50/js/ui/workspace.js).
 

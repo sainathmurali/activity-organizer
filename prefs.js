@@ -17,7 +17,7 @@ export default class OrganizerPreferences extends ExtensionPreferences {
         const behavior = new Adw.PreferencesGroup({title: 'Activities overview'});
         const show = new Adw.SwitchRow({
             title: 'Start with collapsed app stacks',
-            subtitle: 'Click a stack to expand its windows. Click All app stacks to return.',
+            subtitle: 'Click a stack to expand its windows. Click Back to return.',
         });
         settings.bind('collapse-on-overview', show, 'active', Gio.SettingsBindFlags.DEFAULT);
         behavior.add(show);

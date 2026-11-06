@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 4.2.0
+
+- Add GNOME Shell 46, 47, 48, and 49 alongside 50 to the supported versions.
+- Verify the native allocation, focus/overlay, activation, and drag/drop contracts against the upstream JavaScript for each supported release.
+- Document the distinction between source compatibility checks and live compositor tests.
+- Update the preferences hint to use the current Back button label.
+- Simplify the documentation and remove development-process notes.
+
 ## Version 4.1.0
 
 - Drop windows directly onto another window or stack to create temporary groups.

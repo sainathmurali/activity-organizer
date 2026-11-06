@@ -1,17 +1,11 @@
-Activity Organizer 4.1.0 adds temporary drag-and-drop groups.
+Activity Organizer 4.2.0 adds GNOME Shell 46–49 alongside Shell 50.
 
-- Drop one window onto another window or stack to create a temporary group.
-- Drop onto an existing group thumbnail or header to add windows directly.
-- Drag a collapsed stack to move its members together; expand first to select one window.
-- Other stacks become visible while dragging from an expanded group.
-- Right-click a temporary group and choose **Save as reusable group…** to retain it.
-- Right-click a group for **Close all windows in group**. Apps retain their normal unsaved-document prompts.
-- The default toolbar no longer shows the redundant App stacks button. Expanded groups have **Back**.
+Supported versions: 46, 47, 48, 49, 50.
 
-Temporary groups stay out of saved settings until you save them. Saved app/window versions remain available after closing a group.
+The overview layout, overlay/focus, activation, and drag/drop contracts were checked against the native JavaScript from all five upstream release branches. Unit tests, strict schema validation, and Shexli 0.2.1 pass with zero findings.
 
-The showcase image compares real default Activities with the same 13 windows organized into app stacks. Source screenshots are included in the repository.
+Only Shell 50.6 has been tested in a live compositor here. The compatibility harness uses backend substitutes and does not replace desktop testing on 46–49.
 
-For GNOME Shell 50. Unit checks, strict schema validation, the isolated GNOME test, and Shexli 0.2.1 pass with zero Shexli findings. Full pointer/touch interaction and multiple monitors still need desktop testing.
+The preferences hint now uses the current Back button label. Documentation has been simplified.
 
-Install the .shell-extension.zip asset, then log out and back in. GNOME Extensions submission and approval are separate from this GitHub release.
+The UUID and settings schema are unchanged. Install the .shell-extension.zip asset and log out and back in to load the update. GNOME Extensions submission and approval are separate from this GitHub release.
